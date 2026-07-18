@@ -12,7 +12,7 @@ think again) is what makes this "agentic" rather than a plain chatbot.
 
 import os
 import re
-import js
+import json
 import pandas as pd
 import numpy as np
 from groq import Groq
