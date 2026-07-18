@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agentic AI CSV Intelligence</title>
+<link rel="stylesheet" href="style.css" />
+<script src="chart.umd.min.js"></script>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<!-- NAV -->
+<nav class="navbar">
+  <div class="logo">🤖 <span>Agentic AI</span></div>
+  <div class="nav-links">
+    <a href="#home">Home</a>
+    <a href="#features">Features</a>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#insights">AI Insights</a>
+    <a href="#chat">Assistant</a>
+    <a href="#history">History</a>
+  </div>
+  <button class="btn btn-primary" id="navUploadBtn">📤 Upload CSV</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="home">
+  <div class="hero-left">
+    <div class="tag">🚀 AI • Machine Learning • Data Science</div>
+    <h1>Agentic AI <span class="grad">CSV Intelligence</span> System</h1>
+    <p>Upload any CSV dataset and let the AI agent clean it, analyze it, train
+      quick models, and answer your questions about it — in plain English.</p>
+    <div class="hero-buttons">
+      <button class="btn btn-primary" id="getStartedBtn">▶ Get Started</button>
+      <button class="btn btn-outline" id="heroUploadBtn">📤 Upload Dataset</button>
+    </div>
+  </div>
+
+  <div class="hero-right glass-card">
+    <h3>🔵 AI Agent Status</h3>
+    <div class="status-row">
+      <span>Backend</span>
+      <span id="statBackend" class="pill pill-warn">Checking...</span>
+    </div>
+    <div class="status-row">
+      <span>Dataset Loaded</span>
+      <span id="statDataset" class="pill pill-warn">Waiting</span>
+    </div>
+    <div class="status-row">
+      <span>Model</span>
+      <span id="statModel" class="pill">Groq · Llama 3.3</span>
+    </div>
+    <div class="status-row">
+      <span>Insights Generated</span>
+      <span id="statInsights" class="pill">0</span>
+    </div>
+  </div>
+</section>
+
+<!-- UPLOAD -->
+<section class="section" id="features">
+  <h2>Dataset Upload Center</h2>
+  <p class="subtitle">Upload your CSV dataset to start AI-powered analysis.</p>
+
+  <div class="grid-3">
+    <div class="glass-card upload-card">
+      <input type="file" id="csvInput" accept=".csv" hidden />
+      <button class="btn btn-primary" id="chooseFileBtn">📁 Choose CSV File</button>
+      <p id="fileNameLabel" class="muted">No file selected</p>
+    </div>
+    <div class="glass-card center-card">
+      <div class="icon">📦</div>
+      <h4>Dataset Size</h4>
+      <div class="big-stat" id="datasetSize">0 KB</div>
+    </div>
+    <div class="glass-card center-card">
+      <div class="icon">✅</div>
+      <h4>Status</h4>
+      <div class="big-stat" id="uploadStatus">Waiting</div>
+    </div>
+  </div>
+
+  <h2 class="mt">Dataset Preview Dashboard</h2>
+  <p class="subtitle">Preview your uploaded dataset before starting the AI analysis.</p>
+
+  <div class="grid-2">
+    <div class="glass-card">
+      <div class="row-between">
+        <h4>📋 Dataset Preview</h4>
+        <div>
+          <button class="btn btn-primary btn-sm" id="startAnalysisBtn">▶ Start AI Analysis</button>
+          <button class="btn btn-danger btn-sm" id="reportBtn">📄 Generate AI Report</button>
+        </div>
+      </div>
+      <div class="table-wrap"><table id="previewTable"><thead></thead><tbody></tbody></table></div>
+    </div>
+    <div class="glass-card">
+      <div class="center-card">
+        <div class="icon">📄</div>
+        <h4>Dataset Name</h4>
+        <div class="big-stat small" id="datasetName">Not Uploaded</div>
+      </div>
+      <div class="center-card">
+        <div class="icon">📊</div>
+        <h4>Preview Rows</h4>
+        <div class="big-stat small" id="previewRows">0</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUTHENTICITY CHECK -->
+<section class="section">
+  <h2>Data Authenticity Check</h2>
+  <p class="subtitle">A heuristic signal for whether this looks like organic real-world data or synthetically generated data.</p>
+
+  <div class="glass-card auth-card">
+    <div class="auth-header">
+      <div class="auth-score-circle" id="authScoreCircle">
+        <span id="authScoreNumber">--</span>
+      </div>
+      <div class="auth-header-text">
+        <div class="auth-verdict" id="authVerdict">Upload a dataset to check</div>
+        <div class="muted" id="authSubtext">Runs automatically when you upload a CSV.</div>
+      </div>
+    </div>
+
+    <div id="authSignals" class="auth-signals"></div>
+
+    <p class="auth-disclaimer">
+      ⚠️ This is a statistical heuristic, not proof. It flags patterns common in synthetic/demo
+      datasets (uniform distributions, equal-weight categories, gapless sequential IDs, poor
+      Benford's Law fit) versus patterns typical of organically collected data. It cannot and
+      does not verify a file's true origin.
+    </p>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="section" id="dashboard">
+  <h2>AI Analytics Dashboard</h2>
+  <p class="subtitle">Monitor the AI agent while it processes your dataset.</p>
+
+
+  <div class="grid-3">
+    <div class="glass-card center-card"><div class="icon">🧠</div><h4>AI Status</h4><div class="big-stat" id="aiStatus">Waiting</div></div>
+    <div class="glass-card center-card"><div class="icon">🧹</div><h4>Missing Values</h4><div class="big-stat" id="missingValues">0</div></div>
+    <div class="glass-card center-card"><div class="icon">📑</div><h4>Duplicate Rows</h4><div class="big-stat" id="duplicateRows">0</div></div>
+    <div class="glass-card center-card"><div class="icon">📶</div><h4>Total Features</h4><div class="big-stat" id="totalFeatures">0</div></div>
+    <div class="glass-card center-card"><div class="icon">🗄️</div><h4>Total Records</h4><div class="big-stat" id="totalRecords">0</div></div>
+    <div class="glass-card center-card"><div class="icon">📈</div><h4>AI Confidence</h4><div class="big-stat" id="aiConfidence">0%</div></div>
+  </div>
+
+  <div class="glass-card progress-card">
+    <h4>AI Processing Progress</h4>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <p class="muted" id="progressLabel">Waiting for dataset...</p>
+  </div>
+</section>
+
+<!-- CLEANING PIPELINE -->
+<section class="section">
+  <h2>Agentic AI Data Cleaning Pipeline</h2>
+  <p class="subtitle">The AI Agent automatically cleans and prepares your dataset.</p>
+  <div class="grid-3">
+    <div class="glass-card center-card"><div class="icon">📤</div><h4>Dataset Uploaded</h4><div class="pill pill-warn" id="stepUploaded">Waiting...</div></div>
+    <div class="glass-card center-card"><div class="icon">🔍</div><h4>Missing Values</h4><div class="pill pill-warn" id="stepMissing">Waiting...</div></div>
+    <div class="glass-card center-card"><div class="icon">📄</div><h4>Duplicate Check</h4><div class="pill pill-warn" id="stepDup">Waiting...</div></div>
+    <div class="glass-card center-card"><div class="icon">🎯</div><h4>Outlier Detection</h4><div class="pill pill-warn" id="stepOutlier">Waiting...</div></div>
+    <div class="glass-card center-card"><div class="icon">⚙️</div><h4>Feature Engineering</h4><div class="pill pill-warn" id="stepFeature">Waiting...</div></div>
+    <div class="glass-card center-card"><div class="icon">✅</div><h4>Data Ready</h4><div class="pill pill-warn" id="stepReady">Waiting...</div></div>
+  </div>
+</section>
+
+<!-- ML DASHBOARD -->
+<section class="section">
+  <h2>Machine Learning Dashboard</h2>
+  <p class="subtitle">Agentic AI automatically trains models and selects the best-performing one.</p>
+  <div class="grid-4">
+    <div class="glass-card center-card"><div class="icon">🧩</div><h4>K-Means Clustering</h4><div class="muted">Status</div><div class="big-stat small" id="mlKmeans">Waiting</div></div>
+    <div class="glass-card center-card"><div class="icon">🌳</div><h4>Decision Tree</h4><div class="muted">Accuracy</div><div class="big-stat small" id="mlDT">0%</div></div>
+    <div class="glass-card center-card"><div class="icon">🌲</div><h4>Random Forest</h4><div class="muted">Accuracy</div><div class="big-stat small" id="mlRF">0%</div></div>
+    <div class="glass-card center-card"><div class="icon">⚡</div><h4>Segments Found</h4><div class="muted">Clusters</div><div class="big-stat small" id="mlSegments">0</div></div>
+  </div>
+  <div class="glass-card best-model-card">
+    <h4>🏆 Best Performing Model</h4>
+    <div class="best-model-name" id="bestModel">Waiting...</div>
+    <p class="muted">Accuracy: <span id="bestAccuracy">0%</span></p>
+    <p class="ml-skip-note" id="mlSkipNote" style="display:none;"></p>
+  </div>
+</section>
+
+<!-- MODEL EXPLAINABILITY -->
+<section class="section">
+  <h2>Model Explainability</h2>
+  <p class="subtitle">Which columns actually drove the prediction, and how features relate to each other.</p>
+  <div class="grid-2">
+    <div class="glass-card">
+      <h4>🔥 Correlation Heatmap</h4>
+      <div id="correlationHeatmap" class="heatmap-wrap">
+        <p class="muted">Run "Start AI Analysis" to see column correlations.</p>
+      </div>
+    </div>
+    <div class="glass-card">
+      <h4>📶 Feature Importance</h4>
+      <div id="featureImportanceList" class="importance-list">
+        <p class="muted">Run "Start AI Analysis" to see which columns matter most.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VISUAL ANALYTICS -->
+<section class="section" id="insights">
+  <h2>AI Visual Analytics</h2>
+  <p class="subtitle">Interactive charts generated from the uploaded dataset.</p>
+  <div class="grid-2">
+    <div class="glass-card"><h4>🥧 Category Breakdown</h4><canvas id="pieChart"></canvas></div>
+    <div class="glass-card"><h4>📊 Value Distribution</h4><canvas id="barChart"></canvas></div>
+  </div>
+</section>
+
+<!-- CHAT -->
+<section class="section" id="chat">
+  <h2>Agentic AI Assistant</h2>
+  <p class="subtitle">Ask questions about your uploaded dataset — type, speak, or try "show me X vs Y".</p>
+
+  <div class="glass-card chat-card">
+    <div class="chat-header">
+      <span class="dot-online"></span> Agent Online
+      <div class="chat-header-actions">
+        <button class="btn btn-outline btn-sm" id="explainAnomalyBtn">🔎 Explain an Anomaly</button>
+        <button class="btn btn-outline btn-sm" id="clearChatBtn">🗑 Clear Chat</button>
+      </div>
+    </div>
+    <div class="chat-window" id="chatWindow">
+      <div class="chat-bubble bot">👋 Hello! I'm your Agentic AI Assistant. Upload a dataset and ask me questions like "what's the average of column X?", "show me income vs spending score", or click "Explain an Anomaly".</div>
+    </div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Ask something about your data..." />
+      <button class="btn btn-outline mic-btn" id="micBtn" title="Speak your question">🎤</button>
+      <button class="btn btn-primary" id="chatSendBtn">Send</button>
+    </div>
+  </div>
+</section>
+
+
+<!-- HISTORY -->
+<section class="section" id="history">
+  <div class="row-between" style="max-width: 800px; margin: 0 auto 8px;">
+    <div>
+      <h2 style="text-align:left; margin-bottom:4px;">Upload History</h2>
+      <p class="subtitle" style="text-align:left; margin-bottom:0;">Every dataset you've uploaded this session.</p>
+    </div>
+    <button class="btn btn-outline btn-sm" id="clearHistoryBtn">🗑 Clear</button>
+  </div>
+
+  <div class="glass-card history-card">
+    <div id="historyList">
+      <p class="muted" id="historyEmpty">No datasets uploaded yet this session.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>Built with FastAPI · Groq (Llama 3.3) · Vanilla JS — Agentic AI Project</p>
+   <div class="footer-credit">
+    <span class="credit-name">Developed by Rohan Bhowmik</span>
+    <a href="https://www.instagram.com/rohan_._.bhowmik.84?igsh=MWx3dWM5dHl1dWZsbQ==" target="_blank" rel="noopener"> Instagram</a>
+    <a href="https://www.linkedin.com/in/rohan-bhowmik-b014473a1" target="_blank" rel="noopener"> LinkedIn</a>
+    <a href="https://github.com/rohanbhowm25308" target="_blank" rel="noopener"> GitHub</a>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
