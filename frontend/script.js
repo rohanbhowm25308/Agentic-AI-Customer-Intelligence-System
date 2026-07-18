@@ -1,8 +1,14 @@
-const API_BASE = "http://127.0.0.1:8000";
+// Empty string = same-origin relative paths (e.g. fetch("/api/upload")).
+// This works both locally and after deployment (Render, etc.) without any
+// hardcoded URL, because the backend now serves this frontend directly —
+// see FRONTEND_DIR mount at the bottom of backend/main.py.
+const API_BASE = "";
 
 // Wraps fetch with a timeout so a slow/hung backend can never leave a
-// button or status stuck forever with no feedback.
-async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+// button or status stuck forever with no feedback. 90s default because
+// free-tier hosts (Render, etc.) can take 50+ seconds to wake from sleep —
+// too short a timeout here would misreport a normal cold start as a failure.
+async function fetchWithTimeout(url, options = {}, timeoutMs = 90000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -18,8 +24,8 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
 }
 
 /* ---------------------------------------------------------------------
-   PARTICLE BACKGROUND (dots drifting, faint connecting lines) — matches
-   the reference video's animated background.
+   PARTICLE BACKGROUND (dots drifting, faint connecting lines) — the
+   original style, restored per request.
 --------------------------------------------------------------------- */
 const canvas = document.getElementById("particles");
 const ctx = canvas.getContext("2d");
@@ -87,20 +93,52 @@ document.getElementById("getStartedBtn").onclick = () =>
   document.getElementById("features").scrollIntoView({ behavior: "smooth" });
 
 /* ---------------------------------------------------------------------
-   BACKEND STATUS CHECK
+   BACKEND STATUS CHECK — handles free-tier cold starts (Render, etc.)
+   gracefully instead of treating a sleeping server as "offline". A sleeping
+   free-tier instance can take 50+ seconds to wake up; we poll patiently
+   and show the user what's happening instead of a confusing failure.
 --------------------------------------------------------------------- */
 async function checkBackend() {
-  try {
-    const res = await fetch(`${API_BASE}/api/status`);
-    if (res.ok) {
-      document.getElementById("statBackend").textContent = "Online";
-      document.getElementById("statBackend").className = "pill pill-done";
+  const statPill = document.getElementById("statBackend");
+  const banner = document.getElementById("coldStartBanner");
+
+  const MAX_ATTEMPTS = 15;
+  const RETRY_DELAY_MS = 4000;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/api/status`, {}, 10000);
+      if (res.ok) {
+        statPill.textContent = "Online";
+        statPill.className = "pill pill-done";
+        if (banner) banner.style.display = "none";
+        return;
+      }
+    } catch {
+      // fall through to retry
     }
-  } catch {
-    document.getElementById("statBackend").textContent = "Offline";
-    document.getElementById("statBackend").className = "pill";
-    document.getElementById("statBackend").style.background = "rgba(248,113,113,0.15)";
-    document.getElementById("statBackend").style.color = "#f87171";
+
+    // First failure: show the "waking up" banner instead of "offline" —
+    // this is almost always just a cold start, not a real problem.
+    if (banner) {
+      banner.style.display = "flex";
+      banner.querySelector(".cold-start-text").textContent =
+        `⏳ Waking up the server (free tier can take up to a minute)... attempt ${attempt}/${MAX_ATTEMPTS}`;
+    }
+    statPill.textContent = "Waking up...";
+    statPill.className = "pill pill-warn";
+
+    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+  }
+
+  // All retries exhausted — now it's fair to call it actually offline
+  statPill.textContent = "Offline";
+  statPill.className = "pill";
+  statPill.style.background = "rgba(248,113,113,0.15)";
+  statPill.style.color = "#f87171";
+  if (banner) {
+    banner.querySelector(".cold-start-text").textContent =
+      "⚠️ Couldn't reach the backend after several attempts. It may genuinely be down — check your Render service.";
   }
 }
 checkBackend();
@@ -125,10 +163,11 @@ document.getElementById("csvInput").addEventListener("change", async (e) => {
   formData.append("file", file);
 
   try {
-    const res = await fetchWithTimeout(`${API_BASE}/api/upload`, {
-      method: "POST",
-      body: formData,
-    });
+    const res = await fetchWithTimeout(
+      `${API_BASE}/api/upload`,
+      { method: "POST", body: formData },
+      120000
+    );
 
     if (!res.ok) throw new Error((await res.json()).detail || "Upload failed");
     const data = await res.json();
@@ -264,6 +303,14 @@ async function runFullAnalysis() {
     document.getElementById("bestModel").textContent = ml.best_model;
     document.getElementById("bestAccuracy").textContent = `${ml.best_accuracy}%`;
     document.getElementById("aiConfidence").textContent = `${ml.best_accuracy}%`;
+
+    const skipNote = document.getElementById("mlSkipNote");
+    if (ml.ml_skip_reason) {
+      skipNote.textContent = `ℹ️ ${ml.ml_skip_reason}`;
+      skipNote.style.display = "block";
+    } else {
+      skipNote.style.display = "none";
+    }
 
     renderCorrelationHeatmap(ml.correlation);
     renderFeatureImportance(ml.feature_importance);
@@ -416,7 +463,7 @@ async function sendChat() {
     }
   } catch (err) {
     chatWindow.removeChild(chatWindow.lastChild);
-    addBubble("Could not reach the backend. Is it running on port 8000?", "bot");
+    addBubble("Could not reach the backend. Is the server running?", "bot");
   }
 }
 
