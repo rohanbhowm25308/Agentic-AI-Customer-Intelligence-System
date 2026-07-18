@@ -172,8 +172,8 @@ document.getElementById("csvInput").addEventListener("change", async (e) => {
     if (!res.ok) throw new Error((await res.json()).detail || "Upload failed");
     const data = await res.json();
 
-    document.getElementById("datasetSize").textContent = `${data.size_kb} KB`;
-    statusEl.textContent = "Uploaded";
+    document.getElementById("datasetSize").textContent = data.was_sampled ? "20+ MB" : `${data.size_kb} KB`;
+    statusEl.textContent = data.was_sampled ? "Uploaded (sampled)" : "Uploaded";
     document.getElementById("datasetName").textContent = data.filename;
     document.getElementById("previewRows").textContent = data.rows;
     document.getElementById("statDataset").textContent = "Ready";
@@ -183,6 +183,14 @@ document.getElementById("csvInput").addEventListener("change", async (e) => {
     document.getElementById("totalRecords").textContent = data.rows;
     document.getElementById("missingValues").textContent = data.missing_values;
     document.getElementById("duplicateRows").textContent = data.duplicate_rows;
+
+    if (data.was_sampled) {
+      alert(
+        "Heads up: " + data.sample_note +
+        "\n\nThis keeps the app responsive on limited-memory hosting. " +
+        "Run it locally for full-file analysis of very large datasets."
+      );
+    }
 
     renderPreviewTable(data.column_names, data.preview);
     addHistoryEntry(data);
@@ -600,7 +608,7 @@ function renderHistory() {
           <div class="history-icon">📄</div>
           <div class="history-info">
             <div class="history-filename">${escapeHtml(entry.filename)}</div>
-            <div class="history-meta">${entry.rows.toLocaleString()} rows · ${entry.columns} columns · ${entry.sizeKb} KB · ${timeStr}</div>
+            <div class="history-meta">${entry.rows.toLocaleString()} rows · ${entry.columns} columns · ${entry.sizeKb != null ? entry.sizeKb + " KB" : "20+ MB (sampled)"} · ${timeStr}</div>
           </div>
           ${badge}
         </div>`;

@@ -64,14 +64,18 @@ def _require_df():
     return STATE["clean_df"]
 
 
-def _smart_read_csv(contents: bytes) -> pd.DataFrame:
+def _smart_read_csv(contents: bytes, max_rows: int = None) -> pd.DataFrame:
     """Real-world 'CSV' files are inconsistent: some use semicolons (common
     in European-locale exports like the Customer Personality Analysis
     dataset), some use tabs, some aren't UTF-8. Instead of assuming comma +
     UTF-8 and silently mis-parsing everything into one garbage column, we
     detect the actual delimiter/encoding on a small SAMPLE first (cheap,
     constant-time regardless of file size), then do exactly ONE full parse
-    with the winning settings — so this stays fast even on large files."""
+    with the winning settings — so this stays fast even on large files.
+
+    If max_rows is set, the final parse is capped at that many rows — used
+    for very large files on memory-constrained hosts (e.g. Render's free
+    512MB tier), where loading the entire file could crash the process."""
     encodings_to_try = ["utf-8", "latin-1", "cp1252"]
     candidate_delimiters = [",", ";", "\t", "|"]
     SAMPLE_BYTES = 200_000  # enough for header + ~few hundred rows, independent of file size
@@ -105,13 +109,13 @@ def _smart_read_csv(contents: bytes) -> pd.DataFrame:
 
     if best_combo:
         encoding, delim = best_combo
-        return pd.read_csv(io.BytesIO(contents), sep=delim, encoding=encoding)
+        return pd.read_csv(io.BytesIO(contents), sep=delim, encoding=encoding, nrows=max_rows)
 
     # Nothing matched cleanly — fall back to pandas' own sniffing, then plain default
     try:
-        return pd.read_csv(io.BytesIO(contents), sep=None, engine="python")
+        return pd.read_csv(io.BytesIO(contents), sep=None, engine="python", nrows=max_rows)
     except Exception:
-        return pd.read_csv(io.BytesIO(contents))
+        return pd.read_csv(io.BytesIO(contents), nrows=max_rows)
 
 
 @app.post("/api/upload")
@@ -119,7 +123,37 @@ async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a .csv file.")
 
-    contents = await file.read()
+    # Stream-read with an early cutoff instead of `await file.read()` for the
+    # whole thing — on a memory-constrained host (e.g. Render's free 512MB
+    # tier), fully loading a huge file before deciding to sample would still
+    # risk an OOM crash. Reading in bounded chunks means we never hold more
+    # than MAX_BYTES_TO_READ in memory, no matter how large the real file is.
+    MAX_BYTES_TO_READ = 20 * 1024 * 1024  # 20MB safety cap
+    CHUNK_SIZE = 1024 * 1024  # 1MB at a time
+
+    chunks = []
+    total_read = 0
+    truncated = False
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        total_read += len(chunk)
+        if total_read >= MAX_BYTES_TO_READ:
+            truncated = True
+            break
+
+    contents = b"".join(chunks)
+    was_sampled = truncated
+
+    if truncated:
+        # Trim back to the last complete line so pandas doesn't choke on a
+        # broken final row cut off mid-line by the byte cutoff.
+        last_newline = contents.rfind(b"\n")
+        if last_newline != -1:
+            contents = contents[: last_newline + 1]
+
     try:
         df = _smart_read_csv(contents)
     except Exception as e:
@@ -141,13 +175,20 @@ async def upload_csv(file: UploadFile = File(...)):
 
     return {
         "filename": file.filename,
-        "size_kb": round(len(contents) / 1024, 1),
+        "size_kb": round(len(contents) / 1024, 1) if not was_sampled else None,
         "rows": int(df.shape[0]),
         "columns": int(df.shape[1]),
         "missing_values": int(df.isna().sum().sum()),
         "duplicate_rows": int(df.duplicated().sum()),
         "preview": preview,
         "column_names": list(df.columns),
+        "was_sampled": was_sampled,
+        "sample_note": (
+            f"This file is larger than {MAX_BYTES_TO_READ // (1024*1024)}MB — only the first "
+            f"~{df.shape[0]:,} rows were loaded to stay within server memory limits. "
+            "Results below reflect this sample, not the full file."
+            if was_sampled else None
+        ),
     }
 
 
@@ -666,6 +707,12 @@ async def generate_report():
     )
 
 
+# --- Serve the frontend from this same FastAPI app -------------------------
+# This MUST be the last thing registered: Starlette matches routes in
+# registration order, so every /api/... route above is checked first, and
+# this catch-all only serves frontend files for anything else. Having one
+# app serve both frontend and backend means no CORS setup is needed and
+# deployment (e.g. on Render) is a single service instead of two.
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
