@@ -284,13 +284,13 @@ def _compute_ml_analysis(df: pd.DataFrame) -> dict:
     # silhouette_score is O(n^2), so running it on a 280k-row dataset can
     # take hours. We search for the best k on a bounded sample (fast), then
     # do exactly one final KMeans fit on the full data to label every row.
-    SEARCH_SAMPLE_SIZE = 20000
-    SILHOUETTE_SAMPLE_SIZE = 3000
+    SEARCH_SAMPLE_SIZE = 10000
+    SILHOUETTE_SAMPLE_SIZE = 1500
 
     if numeric_df.shape[1] >= 1 and numeric_df.shape[0] >= 5:
         X = numeric_df.fillna(numeric_df.median())
         n_rows = X.shape[0]
-        max_k = min(7, n_rows - 1)
+        max_k = min(5, n_rows - 1)
 
         X_search = X.sample(SEARCH_SAMPLE_SIZE, random_state=42) if n_rows > SEARCH_SAMPLE_SIZE else X
 
@@ -327,7 +327,7 @@ def _compute_ml_analysis(df: pd.DataFrame) -> dict:
     # For very large datasets, train on a capped sample — Decision
     # Tree/Random Forest accuracy plateaus well before using millions of
     # rows, and this keeps response times reasonable regardless of file size.
-    TRAINING_SAMPLE_CAP = 30000
+    TRAINING_SAMPLE_CAP = 15000
     MAX_FEATURE_CARDINALITY = 50  # columns with more unique values than this are
     # almost always free text/IDs, not real categorical features — including
     # them via LabelEncoder would turn arbitrary text into meaningless integer
@@ -458,7 +458,7 @@ def _compute_ml_analysis(df: pd.DataFrame) -> dict:
                 dt_acc = accuracy_score(y_test, dt.predict(X_test))
                 result["decision_tree"] = {"status": "done", "accuracy": round(dt_acc * 100, 1)}
 
-                rf = RandomForestClassifier(n_estimators=50, max_depth=12, random_state=42, n_jobs=-1)
+                rf = RandomForestClassifier(n_estimators=30, max_depth=8, random_state=42, n_jobs=-1)
                 rf.fit(X_train, y_train)
                 rf_acc = accuracy_score(y_test, rf.predict(X_test))
                 result["random_forest"] = {"status": "done", "accuracy": round(rf_acc * 100, 1)}
@@ -707,7 +707,7 @@ async def generate_report():
     )
 
 
-# --- Serve the frontend from this same FastAPI app -------------------------
+# --- Serve the frontend from this same FastAPI app -----------------
 # This MUST be the last thing registered: Starlette matches routes in
 # registration order, so every /api/... route above is checked first, and
 # this catch-all only serves frontend files for anything else. Having one
