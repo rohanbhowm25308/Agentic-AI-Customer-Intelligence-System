@@ -156,11 +156,24 @@ document.getElementById("csvInput").addEventListener("change", async (e) => {
   const statusEl = document.getElementById("uploadStatus");
 
   document.getElementById("fileNameLabel").textContent = file.name;
-  statusEl.textContent = "Uploading...";
   chooseBtn.disabled = true; // prevent a second upload from starting mid-flight
 
+  // Must match the backend's MAX_BYTES_TO_READ cap in main.py. If the file
+  // is bigger than this, the server only keeps the first chunk anyway — so
+  // slicing it down HERE, before upload, means we don't waste time actually
+  // transmitting the rest over a slow connection just to have it discarded.
+  const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
+  let uploadBlob = file;
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    statusEl.textContent = "Trimming large file...";
+    uploadBlob = file.slice(0, MAX_UPLOAD_BYTES, file.type);
+  }
+
+  statusEl.textContent = "Uploading...";
+
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", uploadBlob, file.name); // keep the original filename
 
   try {
     const res = await fetchWithTimeout(
