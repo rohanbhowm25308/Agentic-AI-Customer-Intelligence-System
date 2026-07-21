@@ -174,7 +174,7 @@ pip install -r requirements.txt
 Run the FastAPI server
 
 ```bash
-uvicorn app:app --reload
+uvicorn main:app --reload
 ```
 
 Open your browser
